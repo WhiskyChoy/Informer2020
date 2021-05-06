@@ -1,3 +1,6 @@
 .vscode/
 **/__pycache__
 results/
+covid_data/raw/**
+covid_data/cache/**
+config/kaggle.json
