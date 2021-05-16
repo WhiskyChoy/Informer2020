@@ -90,7 +90,8 @@ class Exp_Informer(Exp_Basic):
             target=args.target,
             inverse=args.inverse,
             timeenc=timeenc,
-            freq=freq
+            freq=freq,
+            scale=args.scale
         )
         print(flag, len(data_set))
         data_loader = DataLoader(
@@ -100,14 +101,23 @@ class Exp_Informer(Exp_Basic):
             num_workers=args.num_workers,
             drop_last=drop_last)
 
+        self.data_set = data_set
+        self.data_loader = data_loader
+
         return data_set, data_loader
 
     def _select_optimizer(self):
         model_optim = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
+
+        self.model_optim = model_optim
+
         return model_optim
     
     def _select_criterion(self):
         criterion =  nn.MSELoss()
+
+        self.criterion = criterion
+
         return criterion
 
     def vali(self, vali_data, vali_loader, criterion):
@@ -122,12 +132,11 @@ class Exp_Informer(Exp_Basic):
         self.model.train()
         return total_loss
 
-    def train(self, setting):
+    def train(self, setting_identifier):
         train_data, train_loader = self._get_data(flag = 'train')
         vali_data, vali_loader = self._get_data(flag = 'val')
         test_data, test_loader = self._get_data(flag = 'test')
-
-        path = os.path.join(self.args.checkpoints, setting)
+        path = os.path.join(self.args.checkpoints, setting_identifier)
         if not os.path.exists(path):
             os.makedirs(path)
 
@@ -192,7 +201,7 @@ class Exp_Informer(Exp_Basic):
         
         return self.model
 
-    def test(self, setting):
+    def test(self, setting_identifier):
         test_data, test_loader = self._get_data(flag='test')
         
         self.model.eval()
@@ -208,13 +217,18 @@ class Exp_Informer(Exp_Basic):
 
         preds = np.array(preds)
         trues = np.array(trues)
-        print('test shape:', preds.shape, trues.shape)
+
+        if self.args.test_recover:
+            preds = self.data_set.inverse_transform(preds)
+            trues = self.data_set.inverse_transform(trues)
+        
+        print('original test shape:', preds.shape, trues.shape)
         preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
         trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
-        print('test shape:', preds.shape, trues.shape)
+        print('reshaped test shape:', preds.shape, trues.shape)
 
         # result save
-        folder_path = './results/' + setting +'/'
+        folder_path = './results/' + setting_identifier +'/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
@@ -227,11 +241,11 @@ class Exp_Informer(Exp_Basic):
 
         return
 
-    def predict(self, setting, load=False):
+    def predict(self, setting_identifier, load=False):
         pred_data, pred_loader = self._get_data(flag='pred')
         
         if load:
-            path = os.path.join(self.args.checkpoints, setting)
+            path = os.path.join(self.args.checkpoints, setting_identifier)
             best_model_path = path+'/'+'checkpoint.pth'
             self.model.load_state_dict(torch.load(best_model_path))
 
@@ -248,7 +262,7 @@ class Exp_Informer(Exp_Basic):
         preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
         
         # result save
-        folder_path = './results/' + setting +'/'
+        folder_path = './results/' + setting_identifier +'/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         
