@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from covid_data import data_handler
 
 
-data_handler.generate_all_data('new', False)
+data_handler.generate_all_data('all', False)
 
 
 
